@@ -1,22 +1,31 @@
+
 const http = require('http');
 const querystring = require('querystring');
 
 const server = http.createServer((req, res) => {
     if (req.method === 'GET' && req.url.startsWith('/numbers')) {
         const queryParams = querystring.parse(req.url.split('?')[1]);
-        const urls = queryParams.url || [];
+        const urls = Array.isArray(queryParams.url) ? queryParams.url : [queryParams.url];
 
-        const fetchNumbers = async (url) => {
-            try {
-                const response = await fetch(url, { timeout: 5000 });
-                if (response.ok) {
-                    const data = await response.json();
-                    return data.numbers || [];
-                }
-            } catch (error) {
-                // Handle fetch error or timeout
-            }
-            return [];
+        const fetchNumbers = (url) => {
+            return new Promise((resolve, reject) => {
+                http.get(url, { timeout: 5000 }, (response) => {
+                    let data = '';
+                    response.on('data', (chunk) => {
+                        data += chunk;
+                    });
+                    response.on('end', () => {
+                        try {
+                            const jsonData = JSON.parse(data);
+                            resolve(jsonData.numbers || []);
+                        } catch (error) {
+                            resolve([]);
+                        }
+                    });
+                }).on('error', (error) => {
+                    resolve([]);
+                });
+            });
         };
 
         const mergeUniqueNumbers = (arrays) => {
